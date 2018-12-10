@@ -1,9 +1,10 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: CfaFactorSHARK
+Bundle-Name: cafaFactorSHARK
 Bundle-SymbolicName: cafeFactorSHARK
 Bundle-Version: 1.0.0.qualifier
 Bundle-Vendor: Software Engineering for Distributed Systems Group
-Automatic-Module-Name: cfaFactorSHARK
+Automatic-Module-Name: cafeFactorSHARK
+Main-Class: cafeGraphSHARK.CafeGraphApp
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Require-Bundle: commonSHARK
