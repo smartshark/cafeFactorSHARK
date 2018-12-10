@@ -106,37 +106,6 @@ public class CafeFactorApp {
 		state.getFactors().put(name,factor.getId());
 	}
 
-	private void dumpEntity(CFAState state, String prefix) {
-		String msg = "";
-		switch(state.getType()) {
-		case "project":
-			Commit commit = datastore.get(Commit.class, state.getEntityId());
-			msg+="  Commit: "
-				+commit.getRevisionHash().substring(0, 8)
-				+" "
-				+commit.getAuthorDate();
-			break;
-		case "file":
-			FileAction action = datastore.get(FileAction.class, state.getEntityId());
-			File file = datastore.get(File.class, action.getFileId());
-			Commit aCommit = datastore.get(Commit.class, action.getCommitId());
-			msg+="  Action: "
-					+aCommit.getRevisionHash().substring(0, 8)
-					+" "
-					+" "+file.getPath();
-			break;
-		case "method":
-			CodeEntityState ces = datastore.get(CodeEntityState.class, state.getEntityId());
-			Commit mCommit = datastore.get(Commit.class, ces.getCommitId());
-			msg+="  Code Entity State: "
-					+mCommit.getRevisionHash().substring(0, 8)
-					+" "
-					+" "+ces.getLongName();
-			break;
-		}
-		
-		logger.info(prefix+msg);
-	}
 	private void shareRemovedWeights(List<CFAState> pStates) {
 		int i = 0;
 		int size = pStates.size();
@@ -239,7 +208,6 @@ public class CafeFactorApp {
 	}
 	
 	public void processRepository() {
-		//TODO: extend for logical as well
 		//TODO: add sharing / inherited strategies
 		//TODO: visualise / compare with decent
 		//TODO: add carried weights?
@@ -252,7 +220,6 @@ public class CafeFactorApp {
 		// -> current version may be inefficient
 		
 		logger.info("PROJECT LEVEL");
-		//project states
 		List<Commit> commits = datastore.find(Commit.class)
 				.field("vcs_system_id").equal(vcs.getId()).asList();
 		List<ObjectId> ids = commits.stream().map(e->e.getId()).collect(Collectors.toList());
@@ -268,7 +235,6 @@ public class CafeFactorApp {
 		calculateAverageWeights(pStates);
 
 		logger.info("FILE LEVEL");
-		//file states
 		shareRemovedWeights(pStates);
 
 		List<ObjectId> pIds = pStates.stream().map(e->e.getId()).collect(Collectors.toList());
@@ -282,7 +248,6 @@ public class CafeFactorApp {
 		calculateAverageWeights(fStates);
 
 		logger.info("LOGICAL LEVEL");
-		//logical level
 		shareRemovedWeights(fStates);
 
 		List<ObjectId> fIds = fStates.stream().map(e->e.getId()).collect(Collectors.toList());
@@ -310,7 +275,6 @@ public class CafeFactorApp {
 	}
 	
 	public void processCommit(Commit commit) {
-		//TODO: extend for logical as well
 		//TODO: add sharing / inherited strategies
 
 		List<CFAState> pStates = targetstore.find(CFAState.class)
