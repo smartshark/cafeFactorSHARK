@@ -60,19 +60,19 @@
                "fields": [
                      {
                        "type":"DoubleType",
-                       "logical_type":["ProductMetric"]
+                       "logical_type":["ProductMetric"],
                        "field_name":"rw",
                        "desc": "Removed weight in the corresponding state."
                     },
                      {
                        "type":"DoubleType",
-                       "logical_type":["ProductMetric"]
+                       "logical_type":["ProductMetric"],
                        "field_name":"tw",
                        "desc": "Total weight in the corresponding state."
                     },
                      {
                        "type":"DoubleType",
-                       "logical_type":["ProductMetric"]
+                       "logical_type":["ProductMetric"],
                        "field_name":"aw",
                        "desc": "Average weight in the corresponding state."
                     }
