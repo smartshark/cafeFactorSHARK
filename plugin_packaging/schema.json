@@ -1,0 +1,84 @@
+{
+"collections":[  
+      {  
+         "collection_name": "cfa_state",
+         "desc": "Stores multi-layer cause-fix relationships between states at project (commit), file (file action), and logical (method) layers. For each state, parent and children relations are stored for affected entities. For each state the relations to causing and fixing states are stored.",
+         "fields":[  
+            {  
+               "type":"StructType",
+               "logical_type":"nested",
+               "field_name":"factors",
+               "desc": "A map of names to corresponding ObjectIDs where the factor-related data is stored.",
+               "fields": [
+                     {
+                       "type":"ObjectIdType",
+                       "logical_type":"RID",
+                       "reference_to": "cfa_factor",
+                       "field_name":"default",
+                       "desc": "ObjectID of the corresponding factor."
+                    },
+                    {
+                       "type":"ObjectIdType",
+                       "logical_type":"RID",
+                       "reference_to": "cfa_factor",
+                       "field_name":"fix",
+                       "desc": "ObjectID of the corresponding factor."
+                    },
+                    {
+                       "type":"ObjectIdType",
+                       "logical_type":"RID",
+                       "reference_to": "cfa_factor",
+                       "field_name":"adjustedszz_bugfix",
+                       "desc": "ObjectID of the corresponding factor."
+                    },
+                    {
+                       "type":"ObjectIdType",
+                       "logical_type":"RID",
+                       "reference_to": "cfa_factor",
+                       "field_name":"refactoring_codebased",
+                       "desc": "ObjectID of the corresponding factor."
+                    }
+               ]
+            }
+         ]
+      },
+      {   
+         "collection_name": "cfa_factor",
+         "desc": "Stores computed weights for the factors in each state within the multi-layer cause-fix graph based on the relationships between states and the labels for the commits corresponding to the states at the project layer.",
+         "fields":[  
+            {  
+               "type":"ObjectIdType",
+               "logical_type":"OID",
+               "field_name":"_id",
+               "desc": "Identifier of the document."
+            },
+            {  
+               "type":"StructType",
+               "logical_type":"nested",
+               "field_name":"values",
+               "desc": "A map of attribute names to corresponding weights.",
+               "fields": [
+                     {
+                       "type":"DoubleType",
+                       "logical_type":["ProductMetric"]
+                       "field_name":"rw",
+                       "desc": "Removed weight in the corresponding state."
+                    },
+                     {
+                       "type":"DoubleType",
+                       "logical_type":["ProductMetric"]
+                       "field_name":"tw",
+                       "desc": "Total weight in the corresponding state."
+                    },
+                     {
+                       "type":"DoubleType",
+                       "logical_type":["ProductMetric"]
+                       "field_name":"aw",
+                       "desc": "Average weight in the corresponding state."
+                    }
+                ]
+            }
+        ]
+    }
+   ]
+}
