@@ -1,6 +1,5 @@
 package cafeFactorSHARK;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -9,15 +8,12 @@ import org.mongodb.morphia.Datastore;
 import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Logger;
-import common.DatabaseHandler;
+import common.MongoAdapter;
 import common.cafe.CafeFactorConfigurationHandler;
 import common.cafe.CafeFactorParameter;
 import de.ugoe.cs.smartshark.model.CFAFactor;
 import de.ugoe.cs.smartshark.model.CFAState;
-import de.ugoe.cs.smartshark.model.CodeEntityState;
 import de.ugoe.cs.smartshark.model.Commit;
-import de.ugoe.cs.smartshark.model.File;
-import de.ugoe.cs.smartshark.model.FileAction;
 import de.ugoe.cs.smartshark.model.VCSSystem;
 
 /**
@@ -25,12 +21,8 @@ import de.ugoe.cs.smartshark.model.VCSSystem;
  */
 
 public class CafeFactorApp {
-	protected Datastore datastore;
+	protected MongoAdapter adapter;
 	protected Datastore targetstore;
-	private HashMap<String, Commit> commitCache = new HashMap<>();
-	private HashMap<ObjectId, Commit> commitIdCache = new HashMap<>();
-	private HashMap<ObjectId, CFAState> cfaCache = new HashMap<>();
-	private HashMap<ObjectId, CFAState> cfaEntityCache = new HashMap<>();
 	protected VCSSystem vcs;
 	protected static Logger logger = (Logger) LoggerFactory.getLogger(CafeFactorApp.class.getSimpleName());
 
@@ -58,12 +50,15 @@ public class CafeFactorApp {
 	}
 
 	void init() {
-		//TODO: make optional or merge
-//		targetstore = DatabaseHandler.createDatastore("localhost", 27017, "cfashark");
-		datastore = DatabaseHandler.createDatastore(CafeFactorParameter.getInstance());
-		targetstore = datastore;
-		vcs = datastore.find(VCSSystem.class)
-    		.field("url").equal(CafeFactorParameter.getInstance().getUrl()).get();
+		adapter = new MongoAdapter(CafeFactorParameter.getInstance());
+		adapter.setPluginName("cafeFactorSHARK");
+		adapter.setRecordProgress(CafeFactorParameter.getInstance().isRecordProgress());
+		targetstore = adapter.getTargetstore();
+		adapter.setVcs(CafeFactorParameter.getInstance().getUrl());
+		if (adapter.getVcs()==null) {
+			logger.error("No VCS information found for "+CafeFactorParameter.getInstance().getUrl());
+			System.exit(1);
+		}
 	}
 
 	private void addRemovedWeights(List<CFAState> pStates) {
@@ -83,7 +78,7 @@ public class CafeFactorApp {
 			
 			addFactor(pState, "default", 1.0);
 
-			Commit commit = getCommit(pState.getEntityId());
+			Commit commit = adapter.getCommit(pState.getEntityId());
 			//trivial pilot
 			//TODO: use labels instead
 			String message = commit.getMessage();
@@ -109,14 +104,15 @@ public class CafeFactorApp {
 	private void shareRemovedWeights(List<CFAState> pStates) {
 		int i = 0;
 		int size = pStates.size();
-
+		int c = 0;
 		//TODO: add different strategies
 		for (CFAState pState : pStates) {
 			i++;
 			logger.info("Sharing removed weights: "+i+"/"+size);
+			logger.info("  Children: "+pState.getChildrenIds().size());
 			for (ObjectId childId : pState.getChildrenIds()) {
 				CFAState cState = targetstore.get(CFAState.class, childId);
-
+				c++;
 				//reset
 				//fetch existing otherwise create new instead of clearing?
 				for (ObjectId fid : cState.getFactors().values()) {
@@ -129,7 +125,7 @@ public class CafeFactorApp {
 					//TODO: different strategies here?
 					addFactor(cState, sFactor.getName(), sFactor.getValues().get("rw"));
 				}
-				logger.info("        Factors"+cState.getFactors().size());
+				logger.info("        "+c+" Factors"+cState.getFactors().size());
 				targetstore.save(cState);
 			}
 		}
@@ -166,6 +162,10 @@ public class CafeFactorApp {
 		//totals
 		//TODO: split and calculate per factor
 		for (CFAState pState : pStates) {
+			//TODO: investigate why this can happen
+			if (pState.getFactors().isEmpty()) {
+				continue;
+			}
 			i++;
 			logger.info("Adding total weights: "+i+"/"+size);
 			int causes = pState.getFixesIds().size();
@@ -220,8 +220,7 @@ public class CafeFactorApp {
 		// -> current version may be inefficient
 		
 		logger.info("PROJECT LEVEL");
-		List<Commit> commits = datastore.find(Commit.class)
-				.field("vcs_system_id").equal(vcs.getId()).asList();
+		List<Commit> commits = adapter.getCommits();
 		List<ObjectId> ids = commits.stream().map(e->e.getId()).collect(Collectors.toList());
 
 		List<CFAState> pStates = targetstore.find(CFAState.class)
@@ -242,7 +241,6 @@ public class CafeFactorApp {
 		List<CFAState> fStates = targetstore.find(CFAState.class)
 				.field("type").equal("file")
 				.field("parent_id").in(pIds).asList();
-		
 		resetTotalAndAverageWeights(fStates);
 		calculateTotalWeights(fStates);
 		calculateAverageWeights(fStates);
@@ -271,7 +269,7 @@ public class CafeFactorApp {
 	}
 
 	public void processCommit(String hash) {
-        processCommit(getCommit(hash));
+        processCommit(adapter.getCommit(hash));
 	}
 	
 	public void processCommit(Commit commit) {
@@ -313,52 +311,6 @@ public class CafeFactorApp {
 		calculateAverageWeights(lStates);
 		
 		//TODO: add inheriting all weights for baseline calculation
-	}
-
-	Commit getCommit(String hash) {
-		if (!commitCache.containsKey(hash)) {
-			Commit commit = datastore.find(Commit.class)
-					.field("vcs_system_id").equal(vcs.getId())
-					.field("revision_hash").equal(hash).get();
-			commitCache.put(hash, commit);
-			commitIdCache.put(commit.getId(), commit);
-		}
-		return commitCache.get(hash);
-	}
-	
-	Commit getCommit(ObjectId id) {
-		if (!commitIdCache.containsKey(id)) {
-			Commit commit = datastore.get(Commit.class, id);
-			commitCache.put(commit.getRevisionHash(), commit);
-			commitIdCache.put(id, commit);
-		}
-		return commitIdCache.get(id);
-	}
-
-	CFAState getCFAState(ObjectId id) {
-		if (!cfaCache.containsKey(id)) {
-			CFAState state = targetstore.get(CFAState.class, id);
-			if (state == null) {
-				return state;
-			}
-			cfaCache.put(id, state);
-			cfaEntityCache.put(state.getEntityId(), state);
-		}
-		return cfaCache.get(id);
-	}
-
-	CFAState getCFAStateForEntity(ObjectId id) {
-		if (!cfaEntityCache.containsKey(id)) {
-			CFAState state = targetstore.find(CFAState.class)
-				.field("entity_id").equal(id)
-				.get();
-			if (state == null) {
-				return state;
-			}
-			cfaEntityCache.put(id, state);
-			cfaCache.put(state.getId(), state);
-		}
-		return cfaEntityCache.get(id);
 	}
 	
 }
