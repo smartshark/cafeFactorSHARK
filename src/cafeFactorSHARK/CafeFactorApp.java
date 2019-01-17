@@ -1,6 +1,8 @@
 package cafeFactorSHARK;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.bson.types.ObjectId;
@@ -11,7 +13,6 @@ import ch.qos.logback.classic.Logger;
 import common.MongoAdapter;
 import common.cafe.CafeFactorConfigurationHandler;
 import common.cafe.CafeFactorParameter;
-import de.ugoe.cs.smartshark.model.CFAFactor;
 import de.ugoe.cs.smartshark.model.CFAState;
 import de.ugoe.cs.smartshark.model.Commit;
 import de.ugoe.cs.smartshark.model.VCSSystem;
@@ -70,10 +71,6 @@ public class CafeFactorApp {
 			logger.info("Adding factors: "+i+"/"+size);
 			
 			//reset
-			//fetch existing otherwise create new instead of clearing?
-			for (ObjectId fid : pState.getFactors().values()) {
-				targetstore.delete(targetstore.get(CFAFactor.class, fid));
-			}
 			pState.getFactors().clear();
 			
 			addFactor(pState, "default", 1.0);
@@ -94,11 +91,8 @@ public class CafeFactorApp {
 	}
 
 	private void addFactor(CFAState state, String name, double value) {
-		CFAFactor factor = new CFAFactor();
-		factor.setName(name);
-		factor.getValues().put("rw", value);
-		targetstore.save(factor);
-		state.getFactors().put(name,factor.getId());
+		state.getFactors().put(name, new LinkedHashMap<>());
+		state.getFactors().get(name).put("rw", value);
 	}
 
 	private void shareRemovedWeights(List<CFAState> pStates) {
@@ -114,18 +108,13 @@ public class CafeFactorApp {
 				CFAState cState = targetstore.get(CFAState.class, childId);
 				c++;
 				//reset
-				//fetch existing otherwise create new instead of clearing?
-				for (ObjectId fid : cState.getFactors().values()) {
-					targetstore.delete(targetstore.get(CFAFactor.class, fid));
-				}
 				cState.getFactors().clear();
 
 				for (String f : pState.getFactors().keySet()) {
-					CFAFactor sFactor = targetstore.get(CFAFactor.class, pState.getFactors().get(f));
 					//TODO: different strategies here?
-					addFactor(cState, sFactor.getName(), sFactor.getValues().get("rw"));
+					addFactor(cState, f, pState.getFactors().get(f).get("rw"));
 				}
-				logger.info("        "+c+" Factors"+cState.getFactors().size());
+				logger.info("    "+c+" Factors "+cState.getFactors());
 				targetstore.save(cState);
 			}
 		}
@@ -145,15 +134,15 @@ public class CafeFactorApp {
 			}
 			for (String f : pState.getFactors().keySet()) {
 				double value = 0;
-				CFAFactor sFactor = targetstore.get(CFAFactor.class, pState.getFactors().get(f));
-				if (sFactor.getValues().containsKey("tw")) {
-					value = sFactor.getValues().get("tw");
+				Map<String, Double> sFactor = pState.getFactors().get(f);
+				if (sFactor.containsKey("tw")) {
+					value = sFactor.get("tw");
 				}
 				value = value / fixes;
-				sFactor.getValues().put("aw",value);
-				targetstore.save(sFactor);
+				pState.getFactors().get(f).put("aw",value);
 			}
 		}
+		targetstore.save(pStates);
 	}
 
 	private void calculateTotalWeights(List<CFAState> pStates) {
@@ -176,15 +165,15 @@ public class CafeFactorApp {
 				CFAState cause = targetstore.get(CFAState.class, causeId);
 				for (String f : cause.getFactors().keySet()) {
 					double value = 0;
-					CFAFactor cFactor = targetstore.get(CFAFactor.class, cause.getFactors().get(f));
-					CFAFactor sFactor = targetstore.get(CFAFactor.class, pState.getFactors().get(f));
-					if (cFactor.getValues().containsKey("tw")) {
-						value = cFactor.getValues().get("tw");
+					Map<String, Double> cFactor = cause.getFactors().get(f);
+					Map<String, Double> sFactor = pState.getFactors().get(f);
+					if (cFactor.containsKey("tw")) {
+						value = cFactor.get("tw");
 					}
-					value = value + sFactor.getValues().get("rw") * (1.0/causes);
-					cFactor.getValues().put("tw",value);
-					targetstore.save(cFactor);
+					value = value + sFactor.get("rw") *	(1.0/causes);
+					cause.getFactors().get(f).put("tw",value);
 				}
+				targetstore.save(cause);
 			}
 		}
 	}
@@ -199,12 +188,11 @@ public class CafeFactorApp {
 			logger.info("Resetting weights: "+i+"/"+size);
 			for (String f : pState.getFactors().keySet()) {
 				double value = 0;
-				CFAFactor factor = targetstore.get(CFAFactor.class, pState.getFactors().get(f));
-				factor.getValues().put("tw",value);
-				factor.getValues().put("aw",value);
-				targetstore.save(factor);
+				pState.getFactors().get(f).put("tw",value);
+				pState.getFactors().get(f).put("aw",value);
 			}
 		}
+		targetstore.save(pStates);
 	}
 	
 	public void processRepository() {
@@ -226,7 +214,6 @@ public class CafeFactorApp {
 		List<CFAState> pStates = targetstore.find(CFAState.class)
 				.field("type").equal("project")
 				.field("entity_id").in(ids).asList();
-		
 		addRemovedWeights(pStates);
 		
 		resetTotalAndAverageWeights(pStates);
