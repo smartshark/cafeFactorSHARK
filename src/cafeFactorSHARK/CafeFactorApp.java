@@ -76,6 +76,9 @@ public class CafeFactorApp {
 			addFactor(pState, "default", 1.0);
 
 			Commit commit = adapter.getCommit(pState.getEntityId());
+			if (commit.getLabels()==null) {
+				commit.setLabels(new LinkedHashMap<>());
+			}
 			//trivial pilot
 			//TODO: use labels instead
 			String message = commit.getMessage();
