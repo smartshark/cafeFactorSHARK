@@ -18,6 +18,7 @@ public class CafeFactorParameter extends Parameter {
 		if (instance == null) {
 			instance = new CafeFactorParameter();
 		    instance.setOptionsHandler(new CafeFactorOptionHandler());
+		    instance.setConfigurationHandler(new CafeFactorConfigurationHandler());
 		    instance.setToolname("cafeFactorSHARK");
 		}
 		return instance;

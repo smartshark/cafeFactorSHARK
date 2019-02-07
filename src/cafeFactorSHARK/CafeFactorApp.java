@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 
 import ch.qos.logback.classic.Logger;
 import common.MongoAdapter;
-import common.cafe.CafeFactorConfigurationHandler;
 import common.cafe.CafeFactorParameter;
 import de.ugoe.cs.smartshark.model.CFAState;
 import de.ugoe.cs.smartshark.model.Commit;
@@ -28,13 +27,7 @@ public class CafeFactorApp {
 	protected static Logger logger = (Logger) LoggerFactory.getLogger(CafeFactorApp.class.getSimpleName());
 
 	public static void main(String[] args) {
-		//load configuration -> override parameters
-		if (args.length == 1) {
-			args = CafeFactorConfigurationHandler.getInstance().loadConfiguration("properties/sample");
-		}
-		
 		CafeFactorParameter.getInstance().init(args);
-		CafeFactorConfigurationHandler.getInstance().setLogLevel(CafeFactorParameter.getInstance().getDebugLevel());
 		
 		CafeFactorApp app = new CafeFactorApp();
 		
