@@ -48,6 +48,10 @@ public class CafeFactorApp {
 		adapter.setPluginName("cafeFactorSHARK");
 		adapter.setRecordProgress(CafeFactorParameter.getInstance().isRecordProgress());
 		targetstore = adapter.getTargetstore();
+		String name = CafeFactorParameter.getInstance().getUrl().substring(CafeFactorParameter.getInstance().getUrl().lastIndexOf("/")+1).replaceAll("\\.git", "");
+		if (CafeFactorParameter.getInstance().isSeparateDatabase()) {
+			targetstore = adapter.getTargetstore("localhost", 27017, "localSHARK-"+name);
+		}
 		adapter.setVcs(CafeFactorParameter.getInstance().getUrl());
 		if (adapter.getVcs()==null) {
 			logger.error("No VCS information found for "+CafeFactorParameter.getInstance().getUrl());
@@ -228,19 +232,21 @@ public class CafeFactorApp {
 		calculateTotalWeights(fStates);
 		calculateAverageWeights(fStates);
 
-		logger.info("LOGICAL LEVEL");
-		shareRemovedWeights(fStates);
-
-		List<ObjectId> fIds = fStates.stream().map(e->e.getId()).collect(Collectors.toList());
-
-		//TODO: support other types?
-		List<CFAState> lStates = targetstore.find(CFAState.class)
-				.field("type").equal("method")
-				.field("parent_id").in(fIds).asList();
-
-		resetTotalAndAverageWeights(lStates);
-		calculateTotalWeights(lStates);
-		calculateAverageWeights(lStates);
+		if (!CafeFactorParameter.getInstance().isSkipLogical()) {
+			logger.info("LOGICAL LEVEL");
+			shareRemovedWeights(fStates);
+			
+			List<ObjectId> fIds = fStates.stream().map(e->e.getId()).collect(Collectors.toList());
+			
+			//TODO: support other types?
+			List<CFAState> lStates = targetstore.find(CFAState.class)
+					.field("type").equal("method")
+					.field("parent_id").in(fIds).asList();
+			
+			resetTotalAndAverageWeights(lStates);
+			calculateTotalWeights(lStates);
+			calculateAverageWeights(lStates);
+		}
 		
 		//TODO: add recursive processing?
 		

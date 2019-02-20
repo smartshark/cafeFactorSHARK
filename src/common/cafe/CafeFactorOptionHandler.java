@@ -24,5 +24,11 @@ public class CafeFactorOptionHandler extends OptionHandler {
 	    option.setArgs(0);
 	    options.addOption(option);
 	    
+		option = new Option("sl", "Skip logical layer. Default: No");
+	    option.setRequired(false);
+	    option.setLongOpt("skip_logical");
+	    option.setArgs(0);
+	    options.addOption(option);
+
 	}
 }
