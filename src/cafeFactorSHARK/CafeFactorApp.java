@@ -114,7 +114,6 @@ public class CafeFactorApp {
 					//TODO: different strategies here?
 					addFactor(cState, f, pState.getFactors().get(f).get("rw"));
 				}
-				logger.info("    "+c+" Factors "+cState.getFactors());
 				targetstore.save(cState);
 			}
 		}
@@ -218,6 +217,12 @@ public class CafeFactorApp {
 		
 		resetTotalAndAverageWeights(pStates);
 		calculateTotalWeights(pStates);
+
+		//TODO: reduce redundancy and reloading
+		pStates = targetstore.find(CFAState.class)
+				.field("type").equal("project")
+				.field("entity_id").in(ids).asList();
+
 		calculateAverageWeights(pStates);
 
 		logger.info("FILE LEVEL");
@@ -230,6 +235,11 @@ public class CafeFactorApp {
 				.field("parent_id").in(pIds).asList();
 		resetTotalAndAverageWeights(fStates);
 		calculateTotalWeights(fStates);
+		
+		//TODO: reduce redundancy and reloading
+		fStates = targetstore.find(CFAState.class)
+				.field("type").equal("file")
+				.field("parent_id").in(pIds).asList();
 		calculateAverageWeights(fStates);
 
 		if (!CafeFactorParameter.getInstance().isSkipLogical()) {
@@ -245,6 +255,12 @@ public class CafeFactorApp {
 			
 			resetTotalAndAverageWeights(lStates);
 			calculateTotalWeights(lStates);
+			
+			//TODO: reduce redundancy and reloading
+			lStates = targetstore.find(CFAState.class)
+					.field("type").equal("method")
+					.field("parent_id").in(fIds).asList();
+
 			calculateAverageWeights(lStates);
 		}
 		
